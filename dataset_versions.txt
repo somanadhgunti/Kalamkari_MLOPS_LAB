@@ -1,0 +1,18 @@
+Dataset Versions
+================
+
+Version 1: Normal weather conditions
+- File: datasets/fabric_v1.csv
+- Number of records: 300
+- Humidity: Random values between 40% and 70%.
+
+Version 2: Monsoon weather conditions
+- File: datasets/fabric_v2_monsoon.csv
+- Number of records: 300
+- Humidity: Random values between 75% and 95%.
+- The fabric properties other than humidity are preserved from Version 1.
+
+Why drying duration changes during monsoon conditions
+-----------------------------------------------------
+Monsoon air contains more moisture, so water evaporates from the fabric more
+slowly. The formula therefore increases drying duration when humidity is higher.

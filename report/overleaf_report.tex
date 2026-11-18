@@ -1,0 +1,225 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{setspace}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{enumitem}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue,
+    pdftitle={Estimating Drying Time for Kalamkari Fabric Production using MLOps},
+    pdfauthor={Gunti Somanadh}
+}
+
+\setstretch{1.15}
+\setlength{\parskip}{6pt}
+\setlength{\parindent}{0pt}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    frame=single,
+    breaklines=true,
+    columns=fullflexible,
+    backgroundcolor=\color{gray!8}
+}
+
+\begin{document}
+
+% -------------------- Page 1: Title page --------------------
+\begin{titlepage}
+\begin{center}
+    \vspace*{1.2cm}
+    {\Large \textbf{Vignan's University}\par}
+    \vspace{1.5cm}
+    {\LARGE \textbf{MLOPS LABORATORY REPORT}\par}
+    \vspace{1.2cm}
+    {\Huge \textbf{Estimating Drying Time for Kalamkari Fabric Production using MLOps}\par}
+    \vspace{1.5cm}
+    {\large \textbf{Subject:} MLOPS\par}
+    \vspace{1.5cm}
+    \begin{tabular}{>{\bfseries}rl}
+        Student Name: & Gunti Somanadh \\
+        Roll Number: & 231FA04974 \\
+        Course: & B.Tech CSE \\
+        College: & Vignan's University \\
+        Faculty: & Chava Ravi Kishore
+    \end{tabular}
+    \vfill
+    {\large \textbf{Academic Laboratory Record}\par}
+\end{center}
+\end{titlepage}
+
+% -------------------- Page 2: Introductory content --------------------
+\setcounter{page}{2}
+\section*{Abstract}
+This experiment develops a beginner-friendly MLOps solution for estimating the drying time of Kalamkari fabric batches. The implementation uses reproducible synthetic data representing normal and monsoon weather conditions. It covers data preprocessing, feature engineering, model training, evaluation, MLflow model registration, FastAPI serving, automated testing, and GitHub Actions.
+
+\section*{Aim}
+To build and validate a complete MLOps workflow that predicts Kalamkari fabric drying duration in hours.
+
+\section*{Objectives}
+\begin{itemize}[leftmargin=*]
+    \item Generate reproducible synthetic fabric-batch records.
+    \item Prepare data using imputation, encoding, and scaling.
+    \item Create domain-specific features for moisture and airflow.
+    \item Train and compare Ridge Regression and Random Forest Regression.
+    \item Track experiments and register the selected model using MLflow.
+    \item Serve predictions through a FastAPI application.
+    \item Test the saved model using pytest and GitHub Actions.
+\end{itemize}
+
+\section*{Problem Statement}
+Kalamkari fabric production near Machilipatnam requires dyed fabric batches to dry before the next stage of production. Drying time changes with humidity, temperature, airflow, fabric length, number of dye coats, and rack occupancy. This experiment estimates the drying duration of each fabric batch in hours using a machine-learning model.
+
+\newpage
+
+% -------------------- Page 3 onwards: Main content --------------------
+\section{Tools and Technologies}
+\begin{longtable}{p{0.28\textwidth}p{0.62\textwidth}}
+\toprule
+\textbf{Technology} & \textbf{Purpose} \\
+\midrule
+Python & Main implementation language. \\
+Pandas and NumPy & Data generation, data handling, and numerical calculations. \\
+Scikit-learn & Preprocessing, feature engineering, regression models, and metrics. \\
+MLflow & Experiment tracking and model registry. \\
+Joblib & Saving and loading trained pipelines. \\
+FastAPI and Uvicorn & Serving the trained model through a web API. \\
+Pytest & Automated testing of the saved model. \\
+GitHub Actions & Running tests automatically on pushes and pull requests. \\
+\bottomrule
+\end{longtable}
+
+\section{Dataset Generation}
+Two synthetic datasets were generated using a fixed random seed. Each dataset contains 300 Kalamkari fabric-batch records.
+
+\begin{longtable}{p{0.25\textwidth}p{0.18\textwidth}p{0.18\textwidth}p{0.25\textwidth}}
+\toprule
+\textbf{Dataset} & \textbf{Condition} & \textbf{Records} & \textbf{Humidity range} \\
+\midrule
+\texttt{fabric\_v1.csv} & Normal weather & 300 & 40.13\%--69.96\% \\
+\texttt{fabric\_v2\_monsoon.csv} & Monsoon weather & 300 & 75.01\%--94.98\% \\
+\textbf{Combined} & Training preparation & \textbf{600} & Both versions \\
+\bottomrule
+\end{longtable}
+
+The actual average drying duration of the normal-weather dataset is
+\textbf{9.6877 hours}. The actual average for the monsoon dataset is
+\textbf{11.7426 hours}. The increase is caused by higher humidity, which slows evaporation. These datasets are synthetic and are intended only for laboratory learning.
+
+\section{Data Preprocessing}
+The two existing CSV files are combined into one dataset. A \texttt{dataset\_version} column identifies normal and monsoon records. The target column, \texttt{drying\_duration}, is kept separate from the model input features.
+
+\begin{itemize}[leftmargin=*]
+    \item Numerical columns use \texttt{SimpleImputer(strategy="mean")}.
+    \item Categorical columns use \texttt{SimpleImputer(strategy="most\_frequent")}.
+    \item Categorical values are converted using \texttt{OneHotEncoder}.
+    \item Numerical values are standardized using \texttt{StandardScaler}.
+    \item The reusable preprocessing pipeline is saved as \texttt{models/preprocessor.pkl}.
+\end{itemize}
+
+\section{Feature Engineering}
+The preprocessing pipeline creates two required features:
+
+\begin{lstlisting}
+moisture_load_index = fabric_length * dye_coats * (humidity / 100)
+
+airflow_per_meter = airflow_speed / fabric_length
+\end{lstlisting}
+
+\texttt{moisture\_load\_index} represents the combined moisture-related load from fabric length, dye coats, and humidity. \texttt{airflow\_per\_meter} represents the available airflow relative to fabric length.
+
+\section{Model Training and Evaluation}
+The feature data is divided into 80\% training data and 20\% testing data using \texttt{random\_state=42}. Two regression models are trained:
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Ridge Regression:} A regularized linear regression model.
+    \item \textbf{Random Forest Regressor:} A tree-based model using 100 estimators and \texttt{random\_state=42}.
+\end{enumerate}
+
+\begin{longtable}{lrrr}
+\toprule
+\textbf{Model} & \textbf{MAE} & \textbf{RMSE} & \textbf{$R^2$} \\
+\midrule
+Ridge Regression & 0.199617 & 0.254202 & 0.984733 \\
+Random Forest Regressor & 0.510354 & 0.626854 & 0.907163 \\
+\bottomrule
+\end{longtable}
+
+Ridge Regression was selected because it achieved the lowest MAE and RMSE. The selected complete pipeline is saved as \texttt{models/best\_model.pkl}.
+
+\section{MLflow Model Registration}
+MLflow was used to record the model name, parameters, MAE, RMSE, and $R^2$ score for both experiments. The selected model was registered locally using the following details:
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Registered model name:} \texttt{KalamkariDryingTimeModel}
+    \item \textbf{Registered version:} 2
+    \item \textbf{Tracking storage:} Local \texttt{mlflow.db}
+\end{itemize}
+
+\section{FastAPI Prediction API}
+The FastAPI application loads \texttt{models/best\_model.pkl} using Joblib and does not retrain the model. It provides the following endpoints:
+
+\begin{itemize}[leftmargin=*]
+    \item \texttt{GET /}: Returns a message confirming that the API is running.
+    \item \texttt{POST /predict}: Accepts seven validated raw input fields and returns predicted drying time in hours.
+\end{itemize}
+
+The input fields are \texttt{fabric\_material}, \texttt{fabric\_length}, \texttt{dye\_coats}, \texttt{humidity}, \texttt{temperature}, \texttt{airflow\_speed}, and \texttt{rack\_occupancy}.
+
+Actual API checks produced the following predictions:
+
+\begin{longtable}{lr}
+\toprule
+\textbf{Input material} & \textbf{Predicted drying time} \\
+\midrule
+Cotton & 9.34 hours \\
+Silk & 11.21 hours \\
+\bottomrule
+\end{longtable}
+
+Interactive Swagger documentation is available at \texttt{/docs}.
+
+\section{Automated Testing and CI/CD}
+The project contains four pytest tests:
+
+\begin{enumerate}[leftmargin=*]
+    \item Verify that \texttt{models/best\_model.pkl} exists.
+    \item Verify that the saved model loads successfully.
+    \item Verify that valid raw input produces a numerical non-negative prediction.
+    \item Verify that missing required input columns are rejected.
+\end{enumerate}
+
+The actual local result was:
+
+\begin{lstlisting}
+4 passed
+\end{lstlisting}
+
+The GitHub Actions workflow runs on every push and pull request. It uses Python 3.11, installs the dependencies from \texttt{requirements.txt}, and executes \texttt{pytest}.
+
+\section{Results and Conclusion}
+The experiment successfully creates a complete MLOps laboratory workflow. The normal-weather dataset has an average drying duration of 9.6877 hours, while the monsoon dataset has an average of 11.7426 hours. The higher monsoon value demonstrates the effect of increased humidity.
+
+Ridge Regression performed best on the held-out test data and was registered as \texttt{KalamkariDryingTimeModel} version 2. The saved pipeline accepts raw fabric input, performs feature engineering and preprocessing, and returns a drying-time prediction through FastAPI.
+
+The implementation uses synthetic data for educational purposes. Real production data would be required before this model could be used for operational decisions.
+
+\section{Future Enhancements}
+\begin{itemize}[leftmargin=*]
+    \item Collect real Kalamkari production and drying measurements.
+    \item Deploy the FastAPI application to a cloud platform.
+    \item Add monitoring, drift detection, and automated model retraining.
+\end{itemize}
+
+\end{document}
